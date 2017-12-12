@@ -6,21 +6,27 @@
 
 const YOUTUBE_SEARCH_URL = 'https://www.googleapis.com/youtube/v3/search';
 const YOUTUBE_API_KEY = 'AIzaSyCbPOEs1xm4D_cEvM8BDSfrYJMcRJirqfg';
+let SEARCH_TERM = "";
+let PREVIOUS_PAGE = "";
+let NEXT_PAGE = "";
 
-function getDataFromApi(searchTerm, callback) {
+
+function getDataFromApi(pageID, callback) {
   const query = {
     part: 'snippet',
-    q: `${searchTerm}`,
-    // per_page: 5,
+    q: `${SEARCH_TERM}`,
     type: 'video',
     key: `${YOUTUBE_API_KEY}`
   }
-  console.log(query);
+  // if a pageID was provided (next or previous clicks), insert it into the query string
+  if (pageID !== ""){
+    query.pageToken = pageID;
+  };
+  // console.log(query);
   $.getJSON(YOUTUBE_SEARCH_URL, query, callback);
 }
 
 function renderResult(result) {
-  console.log(`${result.snippet.channelId}`);
   return `
     <div>
       <h2>
@@ -35,19 +41,51 @@ function renderResult(result) {
 }
 
 function displayYouTubeSearchData(data) {
-  const results = data.items.map((item, index) => renderResult(item));
+  //Insert here a line with number of results found, results listed, and button to go to previous or next page
+  
+  PREVIOUS_PAGE = data.prevPageToken;
+  NEXT_PAGE = data.nextPageToken;
+  console.log(`${PREVIOUS_PAGE}`);
+  const resultsText = `
+    <div>
+      <h3>${data.pageInfo.totalResults} Results Found</h3>
+      <button class="js-previous-results">\<\< Previous ${data.pageInfo.resultsPerPage} Results</button>
+      <button class="js-next-results">Next ${data.pageInfo.resultsPerPage} Results\>\></button>
+    </div>
+    `;
+  const results = resultsText + data.items.map((item, index) => renderResult(item));
   $('.js-search-results').html(results);
+
+}
+
+
+function watchPrevious(){
+  $('.js-search-results').on('click', '.js-previous-results', event => {
+    event.preventDefault();
+    getDataFromApi(PREVIOUS_PAGE, displayYouTubeSearchData);
+    });
+}
+
+
+function watchNext(){
+  $('.js-search-results').on('click', '.js-next-results', event => {
+    event.preventDefault();
+    getDataFromApi(NEXT_PAGE, displayYouTubeSearchData);
+    });
 }
 
 function watchSubmit() {
   $('.js-search-form').submit(event => {
     event.preventDefault();
     const queryTarget = $(event.currentTarget).find('.js-query');
-    const query = queryTarget.val();
+    const pageID = undefined;
+    SEARCH_TERM = queryTarget.val();
     // clear out the input
     queryTarget.val("");
-    getDataFromApi(query, displayYouTubeSearchData);
+    getDataFromApi(pageID, displayYouTubeSearchData);
   });
 }
 
 $(watchSubmit);
+$(watchPrevious);
+$(watchNext);
